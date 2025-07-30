@@ -6,7 +6,6 @@ import { Eye, EyeOff, MessageCircle } from 'lucide-react';
 const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
-    nome: '',
     email: '',
     senha: ''
   });
@@ -38,24 +37,14 @@ const Login = () => {
       }}
     >
       <div className="w-full max-w-md mx-4">
-        <div className="bg-transparent border-2 border-white rounded-lg p-8 backdrop-blur-sm">
-          <h1 className="text-3xl font-bold text-white text-center mb-8">
-            TV Play das Torcidas
+        <div className="bg-transparent border-2 border-white rounded-lg p-8 backdrop-blur-sm shadow-[0_0_15px_rgba(255,255,255,0.3)] animate-pulse-subtle">
+          <h1 className="text-4xl font-bold text-center mb-8">
+            <span className="text-white animate-text-glow">
+              Tv Play das Torcidas
+            </span>
           </h1>
           
           <form onSubmit={handleLogin} className="space-y-6">
-            <div>
-              <input
-                type="text"
-                name="nome"
-                placeholder="NOME"
-                value={formData.nome}
-                onChange={handleInputChange}
-                className="w-full px-4 py-3 bg-transparent border border-white rounded-md text-white placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-white focus:border-transparent transition-all duration-300 hover:bg-white hover:bg-opacity-10"
-                required
-              />
-            </div>
-            
             <div>
               <input
                 type="email"
@@ -89,7 +78,7 @@ const Login = () => {
             
             <button
               type="submit"
-              className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-4 rounded-md transition-colors duration-300 transform hover:scale-105"
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-md transition-colors duration-300 transform hover:scale-105"
             >
               ENTRAR
             </button>

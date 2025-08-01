@@ -15,7 +15,7 @@ const SBTRJAoVivo = () => {
           </h1>
           
           <div className="aspect-video w-full bg-black rounded-lg overflow-hidden">
-            <YouTubePlayer videoId="LR3A5cDsNUk" />
+            <YouTubePlayer videoId="LMqiRdlRnzg" />
             {/* Aqui vamos implementar o player quando tivermos o link do YouTube */}
           </div>
 

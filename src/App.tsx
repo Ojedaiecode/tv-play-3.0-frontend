@@ -10,6 +10,7 @@ import NotFound from "./pages/NotFound";
 import CanaisGratisPage from "./pages/ao-vivo-gratis";
 import GloboAoVivo from "./pages/ao-vivo-gratis/globo-ao-vivo";
 import SBTRJAoVivo from "./pages/ao-vivo-gratis/sbt-rj-ao-vivo";
+import "./App.css";
 
 const queryClient = new QueryClient();
 

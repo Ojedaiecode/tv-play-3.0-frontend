@@ -33,7 +33,7 @@ const Login = () => {
     <div 
       className="min-h-screen flex items-center justify-center bg-cover bg-center bg-no-repeat"
       style={{
-        backgroundImage: 'url(/public/assets/images/tv-play-background-login-00.png)'
+        backgroundImage: 'url(/assets/images/tv-play-background-login-00.png)'
       }}
     >
       <div className="w-full max-w-md mx-4">

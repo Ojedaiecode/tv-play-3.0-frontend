@@ -1,3 +1,5 @@
+import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import NavbarGlobal from '../components/NavbarGlobal';
 import BannerGlobal from '../components/BannerGlobal';
 import FooterGlobal from '../components/FooterGlobal';
@@ -81,7 +83,7 @@ const kidsShows: ShowCard[] = [
   }
 ];
 
-// Dados dos canais ao vivo
+// Dados dos canais ao vivo gratis (globo, sbt, record, band)
 const liveChannels: LiveChannel[] = [
   {
     title: "Agora na Globo",
@@ -218,6 +220,8 @@ const comedyMovies: PremiumContent[] = [
 ];
 
 const Home = () => {
+  const navigate = useNavigate();
+
   return (
     <div className="min-h-screen bg-gray-900">
       <NavbarGlobal />
@@ -264,7 +268,10 @@ const Home = () => {
           <div>
             <div className="flex justify-between items-center mb-4 sm:mb-6">
               <h2 className="text-xl sm:text-2xl font-bold text-white">Ao Vivo Grátis</h2>
-              <button className="flex items-center text-white/90 hover:text-white transition-colors text-sm sm:text-base">
+              <button 
+                onClick={() => navigate('/ao-vivo-gratis')}
+                className="flex items-center text-white/90 hover:text-white transition-colors text-sm sm:text-base"
+              >
                 Mostrar mais
                 <ChevronRight className="ml-1 w-4 h-4 sm:w-5 sm:h-5" />
               </button>
@@ -276,6 +283,10 @@ const Home = () => {
                 <div 
                   key={index}
                   className="relative aspect-video rounded-lg overflow-hidden group cursor-pointer"
+                  onClick={() => {
+                    if (index === 0) navigate('/ao-vivo-gratis/globo-ao-vivo');
+                    if (index === 1) navigate('/ao-vivo-gratis/sbt-rj-ao-vivo');
+                  }}
                 >
                   <img
                     src={channel.imageUrl}

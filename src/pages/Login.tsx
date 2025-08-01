@@ -1,15 +1,22 @@
 
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Eye, EyeOff, MessageCircle } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/components/ui/use-toast';
 
 const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     email: '',
     senha: ''
   });
+  
   const navigate = useNavigate();
+  const location = useLocation();
+  const { signIn } = useAuth();
+  const { toast } = useToast();
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({
@@ -18,9 +25,34 @@ const Login = () => {
     });
   };
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    navigate('/home');
+    setLoading(true);
+
+    try {
+      const { error } = await signIn(formData.email, formData.senha);
+
+      if (error) {
+        toast({
+          variant: "destructive",
+          title: "Erro no login",
+          description: error.message
+        });
+        return;
+      }
+
+      // Redirecionar para a página anterior ou home
+      const from = location.state?.from?.pathname || '/home';
+      navigate(from, { replace: true });
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Erro no sistema",
+        description: "Ocorreu um erro inesperado. Tente novamente."
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleWhatsApp = () => {
@@ -90,9 +122,17 @@ const Login = () => {
           {/* Botão Entrar */}
           <button
             type="submit"
-            className="w-full py-3 px-4 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold rounded-lg transition-all duration-300 transform hover:scale-[1.02] focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 focus:ring-offset-gray-800"
+            disabled={loading}
+            className="w-full py-3 px-4 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold rounded-lg transition-all duration-300 transform hover:scale-[1.02] focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 focus:ring-offset-gray-800 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
-            Entrar
+            {loading ? (
+              <>
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white" />
+                <span>Entrando...</span>
+              </>
+            ) : (
+              'Entrar'
+            )}
           </button>
 
           {/* Botão WhatsApp */}

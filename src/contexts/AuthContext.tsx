@@ -60,18 +60,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const signIn = async (email: string, password: string) => {
     try {
-      // Primeiro, tentar autenticar com o Supabase Auth
-      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-        email,
-        password
-      });
-
-      if (authError) {
-        console.error('Erro na autenticação:', authError);
-        return { error: { message: 'Credenciais inválidas' } };
-      }
-
-      // Buscar dados do usuário na tabela usuarios_gratis
+      // Buscar usuário na tabela usuarios_gratis
       const { data: usuario, error: dbError } = await supabase
         .from('usuarios_gratis')
         .select('*')
@@ -79,7 +68,30 @@ export function AuthProvider({ children }: AuthProviderProps) {
         .single();
 
       if (dbError || !usuario) {
+        console.error('Erro ao buscar usuário:', dbError);
         return { error: { message: 'Usuário não encontrado' } };
+      }
+
+      // Verificar senha
+      if (usuario.senha !== password) {
+        // Incrementar tentativas falhas
+        const { error: updateError } = await supabase
+          .from('usuarios_gratis')
+          .update({ 
+            tentativas_falhas: (usuario.tentativas_falhas || 0) + 1 
+          })
+          .eq('id', usuario.id);
+
+        if (updateError) {
+          console.error('Erro ao atualizar tentativas:', updateError);
+        }
+
+        return { error: { message: 'Senha incorreta' } };
+      }
+
+      // Verificar tentativas falhas
+      if (usuario.tentativas_falhas >= 3) {
+        return { error: { message: 'Conta bloqueada. Entre em contato via WhatsApp.' } };
       }
 
       // Verificar status da conta
@@ -92,10 +104,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
         return { error: { message: 'Conta expirada. Entre em contato via WhatsApp.' } };
       }
 
-      // Atualizar último acesso
+      // Atualizar último acesso e resetar tentativas
       const { error: updateError } = await supabase
         .from('usuarios_gratis')
         .update({
+          tentativas_falhas: 0,
           ultimo_acesso: new Date().toISOString(),
           ultimo_ip: await fetch('https://api.ipify.org?format=json').then(res => res.json()).then(data => data.ip)
         })
@@ -105,7 +118,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         console.error('Erro ao atualizar dados do usuário:', updateError);
       }
 
-      setUser({ ...usuario, ...authData.user });
+      setUser(usuario);
       setIsAuthenticated(true);
       return { error: null };
     } catch (error) {

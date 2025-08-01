@@ -14,9 +14,19 @@ interface AuthProviderProps {
   children: React.ReactNode;
 }
 
-// Criação do cliente Supabase
+// Validação das variáveis de ambiente
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+if (!supabaseUrl || !supabaseKey) {
+  console.error('Variáveis de ambiente do Supabase não encontradas:', {
+    url: !!supabaseUrl,
+    key: !!supabaseKey
+  });
+  throw new Error('Configuração do Supabase incompleta. Verifique as variáveis de ambiente.');
+}
+
+// Criação do cliente Supabase
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 // Criação do contexto

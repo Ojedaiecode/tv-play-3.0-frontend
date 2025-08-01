@@ -16,7 +16,7 @@ interface AuthProviderProps {
 
 // Validação das variáveis de ambiente
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseKey = import.meta.env.VITE_SUPABASE_ACCESS_TOKEN;
+const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 if (!supabaseUrl || !supabaseKey) {
   console.error('Variáveis de ambiente do Supabase não encontradas:', {

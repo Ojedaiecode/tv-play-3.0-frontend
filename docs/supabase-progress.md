@@ -112,3 +112,35 @@ Seja bem-vindo a esta jornada de desenvolvimento! O Coronel Ojed é um excelente
 ---
 Última atualização: 01/08/2025
 Delta Homes 
+
+---
+
+## Atualização: 02/08/2025
+
+### Configurações de Deploy e Ambiente
+- ✅ Variáveis de ambiente configuradas no Netlify:
+  - VITE_SUPABASE_URL
+  - VITE_SUPABASE_PROJECT_REF
+  - VITE_SUPABASE_ANON_KEY
+- ✅ Deploy automático funcionando via GitHub
+- ✅ Ambiente de produção respondendo corretamente
+
+### Segurança e Autenticação
+- ✅ RLS (Row Level Security) implementado na tabela `usuarios_gratis`
+- Políticas de segurança configuradas:
+  - SELECT: Permissão para consulta durante login
+  - UPDATE: Permissão para atualização de dados não sensíveis
+  - INSERT/DELETE: Restritos a administradores
+- Sistema de login funcionando com validações:
+  - Verificação de credenciais
+  - Controle de tentativas falhas
+  - Validação de status e validade da conta
+
+### Próximos Passos Planejados
+1. Melhorar feedback de erros para o usuário
+2. Implementar sistema de logout
+3. Otimizar sistema de suporte via WhatsApp
+4. Implementar mensagens automáticas para comunicação com usuário
+
+---
+Continuará...

@@ -104,13 +104,26 @@ export function AuthProvider({ children }: AuthProviderProps) {
         return { error: { message: 'Conta expirada. Entre em contato via WhatsApp.' } };
       }
 
+      // Obter IP atual
+      const currentIp = await fetch('https://api.ipify.org?format=json')
+        .then(res => res.json())
+        .then(data => data.ip);
+
+      // Verificar acesso por IP
+      const { canAccess, message } = await checkUserAccess(email, currentIp);
+      
+      if (!canAccess) {
+        return { error: { message } };
+      }
+
       // Atualizar último acesso e resetar tentativas
       const { error: updateError } = await supabase
         .from('usuarios_gratis')
         .update({
           tentativas_falhas: 0,
           ultimo_acesso: new Date().toISOString(),
-          ultimo_ip: await fetch('https://api.ipify.org?format=json').then(res => res.json()).then(data => data.ip)
+          ultimo_ip: currentIp,
+          status: 'online'
         })
         .eq('id', usuario.id);
 
@@ -128,9 +141,23 @@ export function AuthProvider({ children }: AuthProviderProps) {
   };
 
   const signOut = async () => {
-    setUser(null);
-    setIsAuthenticated(false);
-    await supabase.auth.signOut();
+    try {
+      if (user?.id) {
+        // Atualizar status e último acesso
+        await supabase
+          .from('usuarios_gratis')
+          .update({
+            status: 'offline',
+            ultimo_acesso: new Date().toISOString()
+          })
+          .eq('id', user.id);
+      }
+    } catch (error) {
+      console.error('Erro ao fazer logout:', error);
+    } finally {
+      setUser(null);
+      setIsAuthenticated(false);
+    }
   };
 
   return (

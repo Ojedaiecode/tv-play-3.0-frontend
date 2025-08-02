@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import UAParser from 'ua-parser-js';
+import { UAParser } from 'ua-parser-js';
 import { useAuth } from '@/contexts/AuthContext';
 import { createClient } from '@supabase/supabase-js';
 

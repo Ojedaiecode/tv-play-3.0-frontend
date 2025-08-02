@@ -64,23 +64,52 @@ export const useUserTracking = () => {
 
   // Atualizar informações no Supabase
   const updateUserInfo = async (device: UserDevice, userLocation: UserLocation) => {
-    if (!user?.id) return;
+    if (!user?.email) {
+      console.error('Email do usuário não encontrado');
+      return;
+    }
 
     try {
       setIsUpdating(true);
       
-      const { error } = await supabase
+      // Primeiro, buscar o usuário pelo email
+      const { data: userData, error: fetchError } = await supabase
         .from('usuarios_gratis')
-        .update({
-          dispositivo: device,
-          ultimo_ip: userLocation.ip,
-          localizacao: `${userLocation.city}, ${userLocation.region}, ${userLocation.country}`,
-          ultimo_acesso: new Date().toISOString(),
-          quantidade_acessos: supabase.rpc('increment_access_count', { user_id: user.id })
-        })
-        .eq('id', user.id);
+        .select('id, ip_cadastro')
+        .eq('email', user.email)
+        .single();
 
-      if (error) throw error;
+      if (fetchError) {
+        throw fetchError;
+      }
+
+      if (!userData) {
+        throw new Error('Usuário não encontrado');
+      }
+
+      console.log('Dados do usuário encontrados:', userData);
+
+      // Se é o primeiro acesso, atualizar ip_cadastro
+      const updates = {
+        dispositivo: device,
+        ultimo_ip: userLocation.ip,
+        localizacao: `${userLocation.city}, ${userLocation.region}, ${userLocation.country}`,
+        ultimo_acesso: new Date().toISOString(),
+        quantidade_acessos: supabase.rpc('increment_access_count', { user_id: userData.id })
+      };
+
+      if (!userData.ip_cadastro) {
+        updates['ip_cadastro'] = userLocation.ip;
+      }
+
+      const { error: updateError } = await supabase
+        .from('usuarios_gratis')
+        .update(updates)
+        .eq('id', userData.id);
+
+      if (updateError) throw updateError;
+      
+      console.log('Dados atualizados com sucesso:', updates);
     } catch (error) {
       console.error('Erro ao atualizar informações:', error);
     } finally {
@@ -93,17 +122,23 @@ export const useUserTracking = () => {
     if (!user) return;
 
     const initializeTracking = async () => {
+      console.log('Iniciando tracking para usuário:', user);
+      
       // Detectar dispositivo
       const device = detectDevice();
+      console.log('Informações do dispositivo:', device);
       setDeviceInfo(device);
 
       // Obter localização
       try {
         const userLocation = await getLocation();
+        console.log('Informações de localização:', userLocation);
         setLocation(userLocation);
 
         // Atualizar informações no Supabase
+        console.log('Atualizando informações no Supabase...');
         await updateUserInfo(device, userLocation);
+        console.log('Informações atualizadas com sucesso!');
       } catch (error) {
         console.error('Erro ao inicializar tracking:', error);
       }

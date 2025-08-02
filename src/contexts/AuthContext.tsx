@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
+import { checkUserAccess } from '@/utils/access-control';
 
 // Tipos
 interface AuthContextType {

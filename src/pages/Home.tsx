@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import NavbarGlobal from '../components/NavbarGlobal';
 import BannerGlobal from '../components/BannerGlobal';
 import FooterGlobal from '../components/FooterGlobal';
 import { ChevronRight } from 'lucide-react';
+import { useUserTracking } from '@/hooks/use-user-tracking';
 
 // Interface para os dados dos cards
 interface ShowCard {
@@ -221,6 +222,7 @@ const comedyMovies: PremiumContent[] = [
 
 const Home = () => {
   const navigate = useNavigate();
+  const { deviceInfo, location } = useUserTracking();
 
   return (
     <div className="min-h-screen bg-gray-900">

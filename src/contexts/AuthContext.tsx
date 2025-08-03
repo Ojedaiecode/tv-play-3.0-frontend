@@ -191,46 +191,74 @@ export function AuthProvider({ children }: AuthProviderProps) {
     try {
       if (user?.email) {
         console.log('Iniciando logout para:', user.email);
-        
-        // Buscar usuário atual
-        const { data: userData } = await supabase
-          .from('usuarios_gratis')
-          .select('id, status')
+
+        // Primeiro tentar encerrar sessão normalmente
+        const { data: resultadoEncerramento, error: erroEncerramento } = await supabase
+          .rpc('encerrar_sessao', {
+            p_email: user.email
+          });
+
+        if (erroEncerramento) {
+          console.error('Erro ao encerrar sessão:', erroEncerramento);
+          
+          // Se falhar, tentar limpeza de emergência
+          console.log('Tentando limpeza de emergência...');
+          const { error: erroLimpeza } = await supabase
+            .rpc('limpar_sessao_usuario', {
+              p_email: user.email
+            });
+            
+          if (erroLimpeza) {
+            console.error('Erro na limpeza de emergência:', erroLimpeza);
+            throw new Error('Falha ao limpar sessão');
+          } else {
+            console.log('Limpeza de emergência realizada com sucesso');
+          }
+        } else {
+          console.log('Sessão encerrada com sucesso:', resultadoEncerramento);
+        }
+
+        // Verificar se a sessão foi realmente limpa
+        const { data: sessaoAtiva } = await supabase
+          .from('sessoes_ativas')
+          .select('*')
           .eq('email', user.email)
           .single();
 
-        if (userData) {
-          console.log('Atualizando status para offline...');
-          
-          // Encerrar sessão
-          const { data: resultadoEncerramento, error: erroEncerramento } = await supabase
-            .rpc('encerrar_sessao', {
-              p_email: user.email
-            });
-
-          if (erroEncerramento) {
-            console.error('Erro ao encerrar sessão:', erroEncerramento);
-            
-            // Se falhar, tentar limpeza de emergência
-            console.log('Tentando limpeza de emergência...');
-            const { error: erroLimpeza } = await supabase
-              .rpc('limpar_sessao_usuario', {
-                p_email: user.email
-              });
-              
-            if (erroLimpeza) {
-              console.error('Erro na limpeza de emergência:', erroLimpeza);
-            } else {
-              console.log('Limpeza de emergência realizada com sucesso');
-            }
-          } else {
-            console.log('Sessão encerrada com sucesso:', resultadoEncerramento);
-          }
+        if (sessaoAtiva) {
+          console.error('Sessão ainda ativa após logout. Forçando limpeza...');
+          await supabase
+            .from('sessoes_ativas')
+            .delete()
+            .eq('email', user.email);
         }
+
+        // Verificar status do usuário
+        const { data: usuarioAtual } = await supabase
+          .from('usuarios_gratis')
+          .select('status')
+          .eq('email', user.email)
+          .single();
+
+        if (usuarioAtual?.status === 'online') {
+          console.error('Usuário ainda online após logout. Forçando atualização...');
+          await supabase
+            .from('usuarios_gratis')
+            .update({ 
+              status: 'ativo',
+              ultimo_ip: null,
+              ultimo_acesso: new Date().toISOString()
+            })
+            .eq('email', user.email);
+        }
+
+        // Só limpa o estado local depois de garantir que tudo foi limpo no servidor
+        setUser(null);
+        setIsAuthenticated(false);
       }
     } catch (error) {
       console.error('Erro ao fazer logout:', error);
-    } finally {
+      // Mesmo com erro, limpa o estado local
       setUser(null);
       setIsAuthenticated(false);
     }

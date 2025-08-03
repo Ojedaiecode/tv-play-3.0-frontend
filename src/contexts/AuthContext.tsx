@@ -96,8 +96,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
       }
 
       // Verificar status da conta
-      if (usuario.status !== 'ativo') {
-        return { error: { message: 'Conta inativa. Entre em contato via WhatsApp.' } };
+      if (usuario.status === 'online') {
+        return { error: { message: 'Você já está conectado em outro dispositivo. Para usar este dispositivo, faça logout no outro primeiro.' } };
+      }
+      
+      if (usuario.status === 'inativo' || usuario.status === 'bloqueado') {
+        return { error: { message: 'Acesso temporariamente suspenso. Entre em contato via WhatsApp para mais informações.' } };
       }
 
       // Verificar validade

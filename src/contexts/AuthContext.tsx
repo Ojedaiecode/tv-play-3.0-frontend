@@ -171,23 +171,19 @@ export function AuthProvider({ children }: AuthProviderProps) {
         return { error: { message } };
       }
 
-      // Verificar se já existe sessão ativa
-      const { data: sessaoAtiva } = await supabase
-        .from('sessoes_ativas')
-        .select('ip, ultimo_acesso')
-        .eq('email', email)
-        .single();
+      // Tentar iniciar sessão
+      const { data: resultadoSessao, error: erroSessao } = await supabase
+        .rpc('iniciar_sessao', {
+          p_email: email,
+          p_ip: currentIp
+        });
 
-      if (sessaoAtiva) {
-        // Se existe sessão com IP diferente
-        if (sessaoAtiva.ip !== currentIp) {
-          const ultimoAcesso = new Date(sessaoAtiva.ultimo_acesso);
-          const trintaMinutosAtras = new Date(Date.now() - 30 * 60 * 1000);
-
-          if (ultimoAcesso > trintaMinutosAtras) {
-            return { error: { message: `Este usuário já está logado em outro dispositivo (IP: ${sessaoAtiva.ip}). Aguarde 30 minutos ou contate o suporte.` } };
-          }
-        }
+      if (erroSessao || (resultadoSessao && !resultadoSessao.success)) {
+        return { 
+          error: { 
+            message: resultadoSessao?.message || 'Erro ao iniciar sessão. Tente novamente.' 
+          } 
+        };
       }
 
       // Atualizar último acesso e resetar tentativas
@@ -244,16 +240,16 @@ export function AuthProvider({ children }: AuthProviderProps) {
             console.log('Status atualizado com sucesso');
           }
 
-          // Remover sessão ativa
-          const { error: deleteError } = await supabase
-            .from('sessoes_ativas')
-            .delete()
-            .eq('email', user.email);
+          // Encerrar sessão
+          const { data: resultadoEncerramento, error: erroEncerramento } = await supabase
+            .rpc('encerrar_sessao', {
+              p_email: user.email
+            });
 
-          if (deleteError) {
-            console.error('Erro ao remover sessão:', deleteError);
+          if (erroEncerramento) {
+            console.error('Erro ao encerrar sessão:', erroEncerramento);
           } else {
-            console.log('Sessão removida com sucesso');
+            console.log('Sessão encerrada com sucesso:', resultadoEncerramento);
           }
         }
       }

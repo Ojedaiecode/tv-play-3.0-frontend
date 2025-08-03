@@ -202,21 +202,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
         if (userData) {
           console.log('Atualizando status para offline...');
           
-          // Atualizar status e último acesso
-          const { error: updateError } = await supabase
-            .from('usuarios_gratis')
-            .update({
-              status: 'offline',
-              ultimo_acesso: new Date().toISOString()
-            })
-            .eq('id', userData.id);
-
-          if (updateError) {
-            console.error('Erro ao atualizar status:', updateError);
-          } else {
-            console.log('Status atualizado com sucesso');
-          }
-
           // Encerrar sessão
           const { data: resultadoEncerramento, error: erroEncerramento } = await supabase
             .rpc('encerrar_sessao', {
@@ -225,6 +210,19 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
           if (erroEncerramento) {
             console.error('Erro ao encerrar sessão:', erroEncerramento);
+            
+            // Se falhar, tentar limpeza de emergência
+            console.log('Tentando limpeza de emergência...');
+            const { error: erroLimpeza } = await supabase
+              .rpc('limpar_sessao_usuario', {
+                p_email: user.email
+              });
+              
+            if (erroLimpeza) {
+              console.error('Erro na limpeza de emergência:', erroLimpeza);
+            } else {
+              console.log('Limpeza de emergência realizada com sucesso');
+            }
           } else {
             console.log('Sessão encerrada com sucesso:', resultadoEncerramento);
           }

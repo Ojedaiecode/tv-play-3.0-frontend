@@ -4,22 +4,81 @@ import { Home, Radio, User, Menu, X, LogOut } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { createClient } from '@supabase/supabase-js';
+
+// Inicializar cliente Supabase
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 const NavbarGlobal = () => {
+  const { signOut, user } = useAuth();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const navigate = useNavigate();
 
-  const { signOut } = useAuth();
+
 
   const handleLogout = async () => {
     try {
-      await signOut();
-      setIsDropdownOpen(false); // Fecha o dropdown
-      navigate('/'); // Só navega depois do logout
+      // Primeiro, chamar a função de logout síncrona
+      const { error: logoutError } = await supabase.rpc('logout_usuario', {
+        p_email: user.email
+      });
+
+      if (logoutError) {
+        throw logoutError;
+      }
+
+      // Depois, verificar se realmente limpou
+      const { data: checkSession } = await supabase
+        .from('sessoes_ativas')
+        .select('*')
+        .eq('email', user.email)
+        .single();
+
+      if (checkSession) {
+        throw new Error('Sessão não foi limpa corretamente');
+      }
+
+      const { data: checkUser } = await supabase
+        .from('usuarios_gratis')
+        .select('status')
+        .eq('email', user.email)
+        .single();
+
+      if (checkUser?.status !== 'ativo') {
+        throw new Error('Status não foi atualizado corretamente');
+      }
+
+      // Se chegou aqui, tudo foi limpo corretamente
+      await signOut(); // Limpa o estado local
+      setIsDropdownOpen(false);
+      navigate('/');
     } catch (error) {
       console.error('Erro ao fazer logout:', error);
-      // Mesmo com erro, tenta navegar
+      // Tentar limpeza de emergência
+      try {
+        await supabase
+          .from('sessoes_ativas')
+          .delete()
+          .eq('email', user.email);
+
+        await supabase
+          .from('usuarios_gratis')
+          .update({ 
+            status: 'ativo',
+            ultimo_ip: null,
+            ultimo_acesso: new Date().toISOString()
+          })
+          .eq('email', user.email);
+      } catch (cleanupError) {
+        console.error('Erro na limpeza de emergência:', cleanupError);
+      }
+
+      // Mesmo com erro, limpa estado local e navega
+      await signOut();
+      setIsDropdownOpen(false);
       navigate('/');
     }
   };

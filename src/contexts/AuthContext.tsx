@@ -143,15 +143,34 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const signOut = async () => {
     try {
-      if (user?.id) {
-        // Atualizar status e último acesso
-        await supabase
+      if (user?.email) {
+        console.log('Iniciando logout para:', user.email);
+        
+        // Buscar usuário atual
+        const { data: userData } = await supabase
           .from('usuarios_gratis')
-          .update({
-            status: 'offline',
-            ultimo_acesso: new Date().toISOString()
-          })
-          .eq('id', user.id);
+          .select('id, status')
+          .eq('email', user.email)
+          .single();
+
+        if (userData) {
+          console.log('Atualizando status para offline...');
+          
+          // Atualizar status e último acesso
+          const { error: updateError } = await supabase
+            .from('usuarios_gratis')
+            .update({
+              status: 'offline',
+              ultimo_acesso: new Date().toISOString()
+            })
+            .eq('id', userData.id);
+
+          if (updateError) {
+            console.error('Erro ao atualizar status:', updateError);
+          } else {
+            console.log('Status atualizado com sucesso');
+          }
+        }
       }
     } catch (error) {
       console.error('Erro ao fazer logout:', error);

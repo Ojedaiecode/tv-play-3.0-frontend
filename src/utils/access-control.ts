@@ -25,17 +25,27 @@ export async function checkUserAccess(email: string, currentIp: string): Promise
       };
     }
 
-    // Se o usuário está online e o IP é diferente
-    if (user.status === 'online' && user.ultimo_ip && user.ultimo_ip !== currentIp) {
-      // Verificar se passou mais de 30 minutos desde o último acesso
+    // Verificar status e IP
+    if (user.status === 'online') {
+      // Se está online, verificar último acesso
       const lastAccess = new Date(user.ultimo_acesso);
       const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000);
 
+      // Se o último acesso foi há menos de 30 minutos
       if (lastAccess > thirtyMinutesAgo) {
-        return {
-          canAccess: false,
-          message: 'Este usuário já está logado. Se precisa de um novo login, chame no WhatsApp'
-        };
+        // Se o IP atual é diferente do último IP
+        if (user.ultimo_ip && user.ultimo_ip !== currentIp) {
+          console.log('Tentativa de acesso de IP diferente:', {
+            ultimoIp: user.ultimo_ip,
+            ipAtual: currentIp,
+            ultimoAcesso: lastAccess
+          });
+          
+          return {
+            canAccess: false,
+            message: 'Este usuário já está logado em outro dispositivo. Se precisa de um novo login, chame no WhatsApp'
+          };
+        }
       }
     }
 

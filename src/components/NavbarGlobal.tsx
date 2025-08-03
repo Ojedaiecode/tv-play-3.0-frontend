@@ -3,15 +3,25 @@ import React, { useState } from 'react';
 import { Home, Radio, User, Menu, X, LogOut } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
 
 const NavbarGlobal = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const navigate = useNavigate();
 
-  const handleLogout = () => {
-    // Aqui futuramente podemos adicionar lógica de logout
-    navigate('/');
+  const { signOut } = useAuth();
+
+  const handleLogout = async () => {
+    try {
+      await signOut();
+      setIsDropdownOpen(false); // Fecha o dropdown
+      navigate('/'); // Só navega depois do logout
+    } catch (error) {
+      console.error('Erro ao fazer logout:', error);
+      // Mesmo com erro, tenta navegar
+      navigate('/');
+    }
   };
 
   return (

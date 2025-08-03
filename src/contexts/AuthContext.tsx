@@ -215,42 +215,33 @@ export function AuthProvider({ children }: AuthProviderProps) {
         return { error: { message: 'Conta expirada. Entre em contato via WhatsApp.' } };
       }
 
-      // Verificar sessão ativa
-      const { data: sessaoAtiva } = await supabase
-        .from('sessoes_ativas')
-        .select('*')
+      // Verificar se o usuário já está logado em outro dispositivo
+      const { data: usuarioAtual } = await supabase
+        .from('usuarios_gratis')
+        .select('status, ultimo_ip, ultimo_acesso')
         .eq('email', email)
         .single();
 
-      if (sessaoAtiva && sessaoAtiva.ip !== currentIp) {
-        const ultimoAcesso = new Date(sessaoAtiva.ultimo_acesso);
+      if (usuarioAtual?.status === 'online' && usuarioAtual.ultimo_ip !== currentIp) {
+        const ultimoAcesso = new Date(usuarioAtual.ultimo_acesso);
         const trintaMinutosAtras = new Date(Date.now() - 30 * 60 * 1000);
 
         if (ultimoAcesso > trintaMinutosAtras) {
-          return { error: { message: `Este usuário já está logado em outro dispositivo (IP: ${sessaoAtiva.ip}). Aguarde 30 minutos ou contate o suporte.` } };
+          return { error: { message: `Este usuário já está logado em outro dispositivo (IP: ${usuarioAtual.ultimo_ip}). Aguarde 30 minutos ou contate o suporte.` } };
         }
-
-        // Se passou do timeout, remover sessão antiga
-        await supabase
-          .from('sessoes_ativas')
-          .delete()
-          .eq('email', email);
       }
 
-      // Criar/atualizar sessão
-      const { error: sessionError } = await supabase
-        .from('sessoes_ativas')
-        .upsert({
-          email: email,
-          ip: currentIp,
-          ultimo_acesso: new Date().toISOString()
-        }, {
-          onConflict: 'email'
-        });
+      // Verificar se o IP já está sendo usado por outro usuário
+      const { data: outroUsuario } = await supabase
+        .from('usuarios_gratis')
+        .select('email')
+        .eq('ultimo_ip', currentIp)
+        .eq('status', 'online')
+        .neq('email', email)
+        .single();
 
-      if (sessionError) {
-        console.error('Erro ao gerenciar sessão:', sessionError);
-        return { error: { message: 'Erro ao iniciar sessão. Tente novamente.' } };
+      if (outroUsuario) {
+        return { error: { message: 'Este IP já está sendo usado por outro usuário.' } };
       }
 
       // Atualizar último acesso e resetar tentativas

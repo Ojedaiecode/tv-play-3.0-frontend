@@ -171,6 +171,25 @@ export function AuthProvider({ children }: AuthProviderProps) {
         return { error: { message } };
       }
 
+      // Verificar se já existe sessão ativa
+      const { data: sessaoAtiva } = await supabase
+        .from('sessoes_ativas')
+        .select('ip, ultimo_acesso')
+        .eq('email', email)
+        .single();
+
+      if (sessaoAtiva) {
+        // Se existe sessão com IP diferente
+        if (sessaoAtiva.ip !== currentIp) {
+          const ultimoAcesso = new Date(sessaoAtiva.ultimo_acesso);
+          const trintaMinutosAtras = new Date(Date.now() - 30 * 60 * 1000);
+
+          if (ultimoAcesso > trintaMinutosAtras) {
+            return { error: { message: `Este usuário já está logado em outro dispositivo (IP: ${sessaoAtiva.ip}). Aguarde 30 minutos ou contate o suporte.` } };
+          }
+        }
+      }
+
       // Atualizar último acesso e resetar tentativas
       const { error: updateError } = await supabase
         .from('usuarios_gratis')
@@ -223,6 +242,18 @@ export function AuthProvider({ children }: AuthProviderProps) {
             console.error('Erro ao atualizar status:', updateError);
           } else {
             console.log('Status atualizado com sucesso');
+          }
+
+          // Remover sessão ativa
+          const { error: deleteError } = await supabase
+            .from('sessoes_ativas')
+            .delete()
+            .eq('email', user.email);
+
+          if (deleteError) {
+            console.error('Erro ao remover sessão:', deleteError);
+          } else {
+            console.log('Sessão removida com sucesso');
           }
         }
       }

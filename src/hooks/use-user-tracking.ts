@@ -179,17 +179,26 @@ export const useUserTracking = () => {
       console.log('Tentando atualizar com:', updates);
 
       // Fazer a atualização
-      const { error: updateError } = await supabase
+      console.log('Preparando para atualizar usuário:', userData.id);
+      console.log('Dados a serem atualizados:', JSON.stringify(updates, null, 2));
+
+      const { data: updateData, error: updateError } = await supabase
         .from('usuarios_gratis')
         .update(updates)
-        .eq('id', userData.id);
+        .eq('id', userData.id)
+        .select()
+        .single();
 
       if (updateError) {
-        console.error('Erro na atualização:', updateError);
+        console.error('Erro na atualização:', {
+          message: updateError.message,
+          details: updateError.details,
+          hint: updateError.hint
+        });
         return;
       }
       
-      console.log('Dados atualizados com sucesso!');
+      console.log('Dados atualizados com sucesso:', updateData);
     } catch (error) {
       console.error('Erro geral ao atualizar informações:', error);
     } finally {

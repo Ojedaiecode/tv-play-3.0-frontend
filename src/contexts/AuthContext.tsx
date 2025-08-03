@@ -56,8 +56,41 @@ export function AuthProvider({ children }: AuthProviderProps) {
       setLoading(false);
     });
 
-    return () => subscription.unsubscribe();
-  }, []);
+    // Adicionar listener para quando a página for fechada
+    const handleBeforeUnload = async (event: BeforeUnloadEvent) => {
+      if (user?.email) {
+        event.preventDefault();
+        // Forçar logout ao fechar a página
+        await supabase.rpc('forcar_logout', { p_email: user.email });
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    // Adicionar listener para quando o usuário ficar inativo
+    let inactivityTimer: NodeJS.Timeout;
+    const resetInactivityTimer = () => {
+      clearTimeout(inactivityTimer);
+      inactivityTimer = setTimeout(async () => {
+        if (user?.email) {
+          console.log('Usuário inativo por 30 minutos, fazendo logout...');
+          await signOut();
+        }
+      }, 30 * 60 * 1000); // 30 minutos
+    };
+
+    window.addEventListener('mousemove', resetInactivityTimer);
+    window.addEventListener('keypress', resetInactivityTimer);
+    resetInactivityTimer();
+
+    return () => {
+      subscription.unsubscribe();
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      window.removeEventListener('mousemove', resetInactivityTimer);
+      window.removeEventListener('keypress', resetInactivityTimer);
+      clearTimeout(inactivityTimer);
+    };
+  }, [user?.email]);
 
   const signIn = async (email: string, password: string) => {
     try {

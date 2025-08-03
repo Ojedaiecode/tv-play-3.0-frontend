@@ -41,11 +41,41 @@ export const useUserTracking = () => {
       return 'desktop';
     };
 
+    // Informações de rede
+    const connection = (navigator as any).connection;
+    const networkInfo = connection ? {
+      type: connection.type,
+      effectiveType: connection.effectiveType,
+      downlink: connection.downlink,
+      rtt: connection.rtt
+    } : 'Não disponível';
+
+    // Debug completo
+    console.log('Informações detalhadas do dispositivo:', {
+      parser: result,
+      navigator: {
+        userAgent: navigator.userAgent,
+        platform: navigator.platform,
+        vendor: navigator.vendor,
+        language: navigator.language,
+        hardwareConcurrency: navigator.hardwareConcurrency,
+        deviceMemory: (navigator as any).deviceMemory
+      },
+      screen: {
+        width: window.screen.width,
+        height: window.screen.height,
+        colorDepth: window.screen.colorDepth,
+        orientation: window.screen.orientation
+      },
+      network: networkInfo
+    });
+
     return {
       browser: `${result.browser.name} ${result.browser.version}`,
       os: `${result.os.name} ${result.os.version}`,
       device: result.device.model || 'Unknown',
-      type: deviceType()
+      type: deviceType(),
+      network: networkInfo
     };
   };
 

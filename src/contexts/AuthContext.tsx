@@ -105,10 +105,43 @@ export function AuthProvider({ children }: AuthProviderProps) {
         return { error: { message: 'Conta expirada. Entre em contato via WhatsApp.' } };
       }
 
-      // Obter IP atual
-      const currentIp = await fetch('https://api.ipify.org?format=json')
-        .then(res => res.json())
-        .then(data => data.ip);
+      // Obter IP atual usando múltiplas fontes
+      let currentIp = '';
+      let ipSource = '';
+      
+      try {
+        // Tentar primeiro com ipify
+        const ipifyResponse = await fetch('https://api.ipify.org?format=json');
+        const ipifyData = await ipifyResponse.json();
+        currentIp = ipifyData.ip;
+        ipSource = 'ipify';
+        
+        // Tentar com outro serviço para confirmar
+        const checkipResponse = await fetch('https://checkip.amazonaws.com/');
+        const checkipData = await checkipResponse.text();
+        const confirmIp = checkipData.trim();
+        
+        console.log('Debug IPs:', {
+          ipify: currentIp,
+          checkip: confirmIp,
+          navigator: {
+            userAgent: navigator.userAgent,
+            platform: navigator.platform,
+            vendor: navigator.vendor
+          },
+          connection: {
+            type: navigator.connection ? navigator.connection.type : 'unknown',
+            effectiveType: navigator.connection ? navigator.connection.effectiveType : 'unknown'
+          }
+        });
+        
+        if (confirmIp !== currentIp) {
+          console.warn('IPs diferentes detectados:', { ipify: currentIp, checkip: confirmIp });
+        }
+      } catch (error) {
+        console.error('Erro ao obter IP:', error);
+        throw new Error('Não foi possível determinar seu IP. Por favor, tente novamente.');
+      }
 
       // Verificar se já existe uma sessão ativa
       const { data: activeSession } = await supabase

@@ -172,11 +172,18 @@ export function AuthProvider({ children }: AuthProviderProps) {
       }
 
       // Tentar iniciar sessão
+      console.log('Tentando iniciar sessão para:', email, 'com IP:', currentIp);
+      
       const { data: resultadoSessao, error: erroSessao } = await supabase
         .rpc('iniciar_sessao', {
           p_email: email,
           p_ip: currentIp
         });
+
+      console.log('Resultado da sessão:', resultadoSessao);
+      if (erroSessao) {
+        console.error('Erro ao iniciar sessão:', erroSessao);
+      }
 
       if (erroSessao || (resultadoSessao && !resultadoSessao.success)) {
         return { 

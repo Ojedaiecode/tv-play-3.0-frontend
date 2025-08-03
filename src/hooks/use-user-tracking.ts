@@ -52,24 +52,54 @@ export const useUserTracking = () => {
   // Obter localização por IP
   const getLocation = async (): Promise<UserLocation> => {
     try {
-      // Primeiro obtém o IP
+      // Primeiro obtém o IP usando api.ipify.org
       const ipResponse = await fetch('https://api.ipify.org?format=json');
       const ipData = await ipResponse.json();
       const ip = ipData.ip;
 
-      // Depois obtém a localização usando o IP
-      const geoResponse = await fetch(`https://ipapi.co/${ip}/json/`);
-      const geoData = await geoResponse.json();
-      
+      try {
+        // Tenta primeiro com ipwhois.app
+        const geoResponse = await fetch(`https://ipwhois.app/json/${ip}`);
+        const geoData = await geoResponse.json();
+        
+        if (geoData.success !== false) {
+          return {
+            ip: ip,
+            city: geoData.city || 'Desconhecida',
+            region: geoData.region || 'Desconhecida',
+            country: geoData.country || 'Desconhecido'
+          };
+        }
+      } catch (geoError) {
+        console.log('Primeiro serviço de geolocalização falhou, tentando alternativa...');
+      }
+
+      try {
+        // Tenta com ip-api.com como fallback
+        const fallbackResponse = await fetch(`http://ip-api.com/json/${ip}`);
+        const fallbackData = await fallbackResponse.json();
+        
+        if (fallbackData.status === 'success') {
+          return {
+            ip: ip,
+            city: fallbackData.city || 'Desconhecida',
+            region: fallbackData.regionName || 'Desconhecida',
+            country: fallbackData.country || 'Desconhecido'
+          };
+        }
+      } catch (fallbackError) {
+        console.log('Serviço de fallback também falhou');
+      }
+
+      // Se chegou aqui, retorna pelo menos o IP que conseguimos
       return {
         ip: ip,
-        city: geoData.city || 'Desconhecida',
-        region: geoData.region || 'Desconhecida',
-        country: geoData.country_name || 'Desconhecido'
+        city: 'Desconhecida',
+        region: 'Desconhecida',
+        country: 'Desconhecido'
       };
     } catch (error) {
-      console.error('Erro ao obter localização:', error);
-      // Retorna dados padrão em caso de erro
+      console.error('Erro ao obter IP:', error);
       return {
         ip: 'Não detectado',
         city: 'Desconhecida',
@@ -88,47 +118,80 @@ export const useUserTracking = () => {
 
     try {
       setIsUpdating(true);
+      console.log('Iniciando atualização para:', user.email);
       
       // Primeiro, buscar o usuário pelo email
       const { data: userData, error: fetchError } = await supabase
         .from('usuarios_gratis')
-        .select('id, ip_cadastro')
+        .select('*')
         .eq('email', user.email)
         .single();
 
       if (fetchError) {
-        throw fetchError;
+        console.error('Erro ao buscar usuário:', fetchError);
+        return;
       }
 
       if (!userData) {
-        throw new Error('Usuário não encontrado');
+        console.error('Usuário não encontrado no banco');
+        return;
       }
 
       console.log('Dados do usuário encontrados:', userData);
 
-      // Se é o primeiro acesso, atualizar ip_cadastro
-      const updates = {
-        dispositivo: device,
-        ultimo_ip: userLocation.ip,
-        localizacao: `${userLocation.city}, ${userLocation.region}, ${userLocation.country}`,
-        ultimo_acesso: new Date().toISOString(),
-        quantidade_acessos: supabase.rpc('increment_access_count', { user_id: userData.id })
+      // Preparar dados para atualização
+      const updates: any = {
+        dispositivo: {
+          browser: device.browser || 'Desconhecido',
+          os: device.os || 'Desconhecido',
+          type: device.type || 'desktop',
+          model: device.device || 'Desconhecido'
+        }
       };
 
-      if (!userData.ip_cadastro) {
-        updates['ip_cadastro'] = userLocation.ip;
+      // Atualizar IP e localização apenas se tivermos dados válidos
+      if (userLocation.ip !== 'Não detectado') {
+        updates.ultimo_ip = userLocation.ip;
+        
+        if (!userData.ip_cadastro) {
+          updates.ip_cadastro = userLocation.ip;
+        }
+
+        if (userLocation.city !== 'Desconhecida') {
+          updates.localizacao = `${userLocation.city}, ${userLocation.region}, ${userLocation.country}`;
+        }
       }
 
+      // Atualizar timestamp e incrementar acessos
+      updates.ultimo_acesso = new Date().toISOString();
+      
+      try {
+        const { data: countData } = await supabase
+          .rpc('increment_access_count', { user_id: userData.id });
+        
+        if (countData) {
+          updates.quantidade_acessos = countData;
+        }
+      } catch (rpcError) {
+        console.error('Erro ao incrementar acessos:', rpcError);
+      }
+
+      console.log('Tentando atualizar com:', updates);
+
+      // Fazer a atualização
       const { error: updateError } = await supabase
         .from('usuarios_gratis')
         .update(updates)
         .eq('id', userData.id);
 
-      if (updateError) throw updateError;
+      if (updateError) {
+        console.error('Erro na atualização:', updateError);
+        return;
+      }
       
-      console.log('Dados atualizados com sucesso:', updates);
+      console.log('Dados atualizados com sucesso!');
     } catch (error) {
-      console.error('Erro ao atualizar informações:', error);
+      console.error('Erro geral ao atualizar informações:', error);
     } finally {
       setIsUpdating(false);
     }

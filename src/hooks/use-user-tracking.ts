@@ -5,17 +5,52 @@ import { createClient } from '@supabase/supabase-js';
 
 // Tipos
 interface UserDevice {
-  browser: string;
-  os: string;
-  device: string;
-  type: 'mobile' | 'tablet' | 'desktop' | 'tv' | 'unknown';
+  browser: {
+    name: string;
+    version: string;
+    userAgent: string;
+  };
+  os: {
+    name: string;
+    version: string;
+    platform: string;
+  };
+  hardware: {
+    type: 'mobile' | 'tablet' | 'desktop' | 'tv' | 'unknown';
+    model: string;
+    vendor: string;
+    memory?: number;
+    cores?: number;
+    screen: {
+      width: number;
+      height: number;
+      colorDepth: number;
+    };
+  };
+  network: {
+    type: string;
+    effectiveType: string;
+    downlink?: number;
+    rtt?: number;
+  };
+  language: string;
+  lastUpdate: string;
 }
 
 interface UserLocation {
-  ip: string;
-  city: string;
-  region: string;
-  country: string;
+  ip: {
+    address: string;
+    source: string;
+    type: string;
+  };
+  geo: {
+    city: string;
+    region: string;
+    country: string;
+    timezone: string;
+    isp: string;
+  };
+  lastUpdate: string;
 }
 
 // Inicialização do Supabase
@@ -34,7 +69,7 @@ export const useUserTracking = () => {
     const parser = new UAParser();
     const result = parser.getResult();
 
-    const deviceType = (): UserDevice['type'] => {
+    const deviceType = (): UserDevice['hardware']['type'] => {
       if (result.device.type === 'mobile') return 'mobile';
       if (result.device.type === 'tablet') return 'tablet';
       if (/smart-tv|smarttv|tv|television/i.test(navigator.userAgent)) return 'tv';
@@ -43,40 +78,44 @@ export const useUserTracking = () => {
 
     // Informações de rede
     const connection = (navigator as any).connection;
-    const networkInfo = connection ? {
-      type: connection.type,
-      effectiveType: connection.effectiveType,
-      downlink: connection.downlink,
-      rtt: connection.rtt
-    } : 'Não disponível';
-
-    // Debug completo
-    console.log('Informações detalhadas do dispositivo:', {
-      parser: result,
-      navigator: {
-        userAgent: navigator.userAgent,
-        platform: navigator.platform,
-        vendor: navigator.vendor,
-        language: navigator.language,
-        hardwareConcurrency: navigator.hardwareConcurrency,
-        deviceMemory: (navigator as any).deviceMemory
-      },
-      screen: {
-        width: window.screen.width,
-        height: window.screen.height,
-        colorDepth: window.screen.colorDepth,
-        orientation: window.screen.orientation
-      },
-      network: networkInfo
-    });
-
-    return {
-      browser: `${result.browser.name} ${result.browser.version}`,
-      os: `${result.os.name} ${result.os.version}`,
-      device: result.device.model || 'Unknown',
-      type: deviceType(),
-      network: networkInfo
+    const networkInfo = {
+      type: connection?.type || 'unknown',
+      effectiveType: connection?.effectiveType || 'unknown',
+      downlink: connection?.downlink,
+      rtt: connection?.rtt
     };
+
+    const device: UserDevice = {
+      browser: {
+        name: result.browser.name || 'Unknown',
+        version: result.browser.version || 'Unknown',
+        userAgent: navigator.userAgent
+      },
+      os: {
+        name: result.os.name || 'Unknown',
+        version: result.os.version || 'Unknown',
+        platform: navigator.platform
+      },
+      hardware: {
+        type: deviceType(),
+        model: result.device.model || 'Unknown',
+        vendor: navigator.vendor || result.device.vendor || 'Unknown',
+        memory: (navigator as any).deviceMemory,
+        cores: navigator.hardwareConcurrency,
+        screen: {
+          width: window.screen.width,
+          height: window.screen.height,
+          colorDepth: window.screen.colorDepth
+        }
+      },
+      network: networkInfo,
+      language: navigator.language,
+      lastUpdate: new Date().toISOString()
+    };
+
+    console.log('Informações detalhadas do dispositivo:', device);
+
+    return device;
   };
 
   // Obter localização por IP
@@ -87,54 +126,65 @@ export const useUserTracking = () => {
       const ipData = await ipResponse.json();
       const ip = ipData.ip;
 
+      let geoData: any = null;
+      let source = '';
+
       try {
         // Tenta primeiro com ipwhois.app
         const geoResponse = await fetch(`https://ipwhois.app/json/${ip}`);
-        const geoData = await geoResponse.json();
+        geoData = await geoResponse.json();
         
         if (geoData.success !== false) {
-          return {
-            ip: ip,
-            city: geoData.city || 'Desconhecida',
-            region: geoData.region || 'Desconhecida',
-            country: geoData.country || 'Desconhecido'
-          };
+          source = 'ipwhois';
+        } else {
+          // Tenta com ip-api.com como fallback
+          const fallbackResponse = await fetch(`http://ip-api.com/json/${ip}`);
+          const fallbackData = await fallbackResponse.json();
+          
+          if (fallbackData.status === 'success') {
+            geoData = fallbackData;
+            source = 'ip-api';
+          }
         }
-      } catch (geoError) {
-        console.log('Primeiro serviço de geolocalização falhou, tentando alternativa...');
+      } catch (error) {
+        console.error('Erro ao obter geolocalização:', error);
       }
 
-      try {
-        // Tenta com ip-api.com como fallback
-        const fallbackResponse = await fetch(`http://ip-api.com/json/${ip}`);
-        const fallbackData = await fallbackResponse.json();
-        
-        if (fallbackData.status === 'success') {
-          return {
-            ip: ip,
-            city: fallbackData.city || 'Desconhecida',
-            region: fallbackData.regionName || 'Desconhecida',
-            country: fallbackData.country || 'Desconhecido'
-          };
-        }
-      } catch (fallbackError) {
-        console.log('Serviço de fallback também falhou');
-      }
-
-      // Se chegou aqui, retorna pelo menos o IP que conseguimos
-      return {
-        ip: ip,
-        city: 'Desconhecida',
-        region: 'Desconhecida',
-        country: 'Desconhecido'
+      const location: UserLocation = {
+        ip: {
+          address: ip,
+          source: source || 'ipify',
+          type: ip.includes(':') ? 'ipv6' : 'ipv4'
+        },
+        geo: {
+          city: geoData?.city || 'Desconhecida',
+          region: geoData?.region || geoData?.regionName || 'Desconhecida',
+          country: geoData?.country || geoData?.country_name || 'Desconhecido',
+          timezone: geoData?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
+          isp: geoData?.isp || 'Desconhecido'
+        },
+        lastUpdate: new Date().toISOString()
       };
+
+      console.log('Informações detalhadas de localização:', location);
+      
+      return location;
     } catch (error) {
-      console.error('Erro ao obter IP:', error);
+      console.error('Erro ao obter localização:', error);
       return {
-        ip: 'Não detectado',
-        city: 'Desconhecida',
-        region: 'Desconhecida',
-        country: 'Desconhecido'
+        ip: {
+          address: 'Não detectado',
+          source: 'error',
+          type: 'unknown'
+        },
+        geo: {
+          city: 'Desconhecida',
+          region: 'Desconhecida',
+          country: 'Desconhecido',
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+          isp: 'Desconhecido'
+        },
+        lastUpdate: new Date().toISOString()
       };
     }
   };
@@ -171,25 +221,15 @@ export const useUserTracking = () => {
 
       // Preparar dados para atualização
       const updates: any = {
-        dispositivo: {
-          browser: device.browser || 'Desconhecido',
-          os: device.os || 'Desconhecido',
-          type: device.type || 'desktop',
-          model: device.device || 'Desconhecido'
-        }
+        dispositivo: device,
+        localizacao: userLocation,
+        ultimo_ip: userLocation.ip.address,
+        ultimo_acesso: new Date().toISOString()
       };
 
-      // Atualizar IP e localização apenas se tivermos dados válidos
-      if (userLocation.ip !== 'Não detectado') {
-        updates.ultimo_ip = userLocation.ip;
-        
-        if (!userData.ip_cadastro) {
-          updates.ip_cadastro = userLocation.ip;
-        }
-
-        if (userLocation.city !== 'Desconhecida') {
-          updates.localizacao = `${userLocation.city}, ${userLocation.region}, ${userLocation.country}`;
-        }
+      // Se é primeiro acesso, registrar IP de cadastro
+      if (!userData.ip_cadastro) {
+        updates.ip_cadastro = userLocation.ip.address;
       }
 
       // Atualizar timestamp e incrementar acessos

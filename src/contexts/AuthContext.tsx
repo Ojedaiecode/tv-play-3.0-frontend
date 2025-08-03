@@ -171,50 +171,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
         return { error: { message } };
       }
 
-      // Buscar usuário primeiro
-      const { data: usuario, error: dbError } = await supabase
-        .from('usuarios_gratis')
-        .select('*')
-        .eq('email', email)
-        .single();
-
-      if (dbError || !usuario) {
-        console.error('Erro ao buscar usuário:', dbError);
-        return { error: { message: 'Usuário não encontrado' } };
-      }
-
-      // Verificar senha
-      if (usuario.senha !== password) {
-        // Incrementar tentativas falhas
-        const { error: updateError } = await supabase
-          .from('usuarios_gratis')
-          .update({ 
-            tentativas_falhas: (usuario.tentativas_falhas || 0) + 1 
-          })
-          .eq('id', usuario.id);
-
-        if (updateError) {
-          console.error('Erro ao atualizar tentativas:', updateError);
-        }
-
-        return { error: { message: 'Senha incorreta' } };
-      }
-
-      // Verificar tentativas falhas
-      if (usuario.tentativas_falhas >= 3) {
-        return { error: { message: 'Conta bloqueada. Entre em contato via WhatsApp.' } };
-      }
-
-      // Verificar status da conta
-      if (usuario.status !== 'ativo') {
-        return { error: { message: 'Conta inativa. Entre em contato via WhatsApp.' } };
-      }
-
-      // Verificar validade
-      if (new Date(usuario.validade) < new Date()) {
-        return { error: { message: 'Conta expirada. Entre em contato via WhatsApp.' } };
-      }
-
       // Verificar se o usuário já está logado em outro dispositivo
       const { data: statusAtual } = await supabase
         .from('usuarios_gratis')

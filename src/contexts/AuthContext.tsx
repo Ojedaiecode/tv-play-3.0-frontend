@@ -110,6 +110,27 @@ export function AuthProvider({ children }: AuthProviderProps) {
         .then(res => res.json())
         .then(data => data.ip);
 
+      // Verificar se já existe uma sessão ativa
+      const { data: activeSession } = await supabase
+        .from('usuarios_gratis')
+        .select('status, ultimo_acesso, ultimo_ip')
+        .eq('email', email)
+        .single();
+
+      if (activeSession?.status === 'online' && 
+          activeSession?.ultimo_ip !== currentIp) {
+        const lastAccess = new Date(activeSession.ultimo_acesso);
+        const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000);
+
+        if (lastAccess > thirtyMinutesAgo) {
+          return { 
+            error: { 
+              message: 'Este usuário já está logado em outro dispositivo. Se precisa de um novo login, chame no WhatsApp' 
+            } 
+          };
+        }
+      }
+
       // Verificar acesso por IP
       const { canAccess, message } = await checkUserAccess(email, currentIp);
       

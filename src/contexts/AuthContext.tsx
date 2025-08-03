@@ -144,15 +144,22 @@ export function AuthProvider({ children }: AuthProviderProps) {
       }
 
       // Iniciar sessão
-      const { data: resultadoSessao, error: erroSessao } = await supabase
+      console.log('Tentando iniciar sessão com:', { email, currentIp });
+      
+      const { data, error: erroSessao } = await supabase
         .rpc('iniciar_sessao', {
           p_email: email,
           p_ip: currentIp
         });
 
+      console.log('Resposta do iniciar_sessao:', { data, erroSessao });
+
+      const resultadoSessao = data as { success: boolean; message: string };
+
       if (erroSessao || !resultadoSessao?.success) {
-        console.error('Erro ao iniciar sessão:', erroSessao || resultadoSessao?.message);
-        return { error: { message: resultadoSessao?.message || 'Erro ao iniciar sessão' } };
+        const mensagemErro = erroSessao?.message || resultadoSessao?.message || 'Erro ao iniciar sessão';
+        console.error('Erro ao iniciar sessão:', { erroSessao, resultadoSessao, mensagemErro });
+        return { error: { message: mensagemErro } };
       }
 
       // Atualizar tentativas falhas

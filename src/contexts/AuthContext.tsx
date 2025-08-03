@@ -216,18 +216,18 @@ export function AuthProvider({ children }: AuthProviderProps) {
       }
 
       // Verificar se o usuário já está logado em outro dispositivo
-      const { data: usuarioAtual } = await supabase
+      const { data: statusAtual } = await supabase
         .from('usuarios_gratis')
         .select('status, ultimo_ip, ultimo_acesso')
         .eq('email', email)
         .single();
 
-      if (usuarioAtual?.status === 'online' && usuarioAtual.ultimo_ip !== currentIp) {
-        const ultimoAcesso = new Date(usuarioAtual.ultimo_acesso);
+      if (statusAtual?.status === 'online' && statusAtual.ultimo_ip !== currentIp) {
+        const ultimoAcesso = new Date(statusAtual.ultimo_acesso);
         const trintaMinutosAtras = new Date(Date.now() - 30 * 60 * 1000);
 
         if (ultimoAcesso > trintaMinutosAtras) {
-          return { error: { message: `Este usuário já está logado em outro dispositivo (IP: ${usuarioAtual.ultimo_ip}). Aguarde 30 minutos ou contate o suporte.` } };
+          return { error: { message: `Este usuário já está logado em outro dispositivo (IP: ${statusAtual.ultimo_ip}). Aguarde 30 minutos ou contate o suporte.` } };
         }
       }
 

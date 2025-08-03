@@ -51,15 +51,32 @@ export const useUserTracking = () => {
 
   // Obter localização por IP
   const getLocation = async (): Promise<UserLocation> => {
-    const response = await fetch('https://ipapi.co/json/');
-    const data = await response.json();
-    
-    return {
-      ip: data.ip,
-      city: data.city,
-      region: data.region,
-      country: data.country_name
-    };
+    try {
+      // Primeiro obtém o IP
+      const ipResponse = await fetch('https://api.ipify.org?format=json');
+      const ipData = await ipResponse.json();
+      const ip = ipData.ip;
+
+      // Depois obtém a localização usando o IP
+      const geoResponse = await fetch(`https://ipapi.co/${ip}/json/`);
+      const geoData = await geoResponse.json();
+      
+      return {
+        ip: ip,
+        city: geoData.city || 'Desconhecida',
+        region: geoData.region || 'Desconhecida',
+        country: geoData.country_name || 'Desconhecido'
+      };
+    } catch (error) {
+      console.error('Erro ao obter localização:', error);
+      // Retorna dados padrão em caso de erro
+      return {
+        ip: 'Não detectado',
+        city: 'Desconhecida',
+        region: 'Desconhecida',
+        country: 'Desconhecido'
+      };
+    }
   };
 
   // Atualizar informações no Supabase
@@ -119,18 +136,21 @@ export const useUserTracking = () => {
 
   // Efeito principal
   useEffect(() => {
-    if (!user) return;
+    if (!user?.email) {
+      console.log('Aguardando dados do usuário...');
+      return;
+    }
 
     const initializeTracking = async () => {
-      console.log('Iniciando tracking para usuário:', user);
-      
-      // Detectar dispositivo
-      const device = detectDevice();
-      console.log('Informações do dispositivo:', device);
-      setDeviceInfo(device);
-
-      // Obter localização
       try {
+        console.log('Iniciando tracking para usuário:', user.email);
+        
+        // Detectar dispositivo
+        const device = detectDevice();
+        console.log('Informações do dispositivo:', device);
+        setDeviceInfo(device);
+
+        // Obter localização
         const userLocation = await getLocation();
         console.log('Informações de localização:', userLocation);
         setLocation(userLocation);
@@ -144,8 +164,9 @@ export const useUserTracking = () => {
       }
     };
 
-    initializeTracking();
-  }, [user]);
+    // Pequeno delay para garantir que tudo está carregado
+    setTimeout(initializeTracking, 1000);
+  }, [user?.email]); // Dependência mais específica
 
   return {
     deviceInfo,

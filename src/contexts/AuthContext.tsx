@@ -143,71 +143,23 @@ export function AuthProvider({ children }: AuthProviderProps) {
         throw new Error('Não foi possível determinar seu IP. Por favor, tente novamente.');
       }
 
-      // Verificar se já existe uma sessão ativa
-      const { data: activeSession } = await supabase
-        .from('usuarios_gratis')
-        .select('status, ultimo_acesso, ultimo_ip')
-        .eq('email', email)
-        .single();
+      // Iniciar sessão
+      const { data: resultadoSessao, error: erroSessao } = await supabase
+        .rpc('iniciar_sessao', {
+          p_email: email,
+          p_ip: currentIp
+        });
 
-      if (activeSession?.status === 'online' && 
-          activeSession?.ultimo_ip !== currentIp) {
-        const lastAccess = new Date(activeSession.ultimo_acesso);
-        const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000);
-
-        if (lastAccess > thirtyMinutesAgo) {
-          return { 
-            error: { 
-              message: 'Este usuário já está logado em outro dispositivo. Se precisa de um novo login, chame no WhatsApp' 
-            } 
-          };
-        }
+      if (erroSessao || !resultadoSessao?.success) {
+        console.error('Erro ao iniciar sessão:', erroSessao || resultadoSessao?.message);
+        return { error: { message: resultadoSessao?.message || 'Erro ao iniciar sessão' } };
       }
 
-      // Verificar acesso por IP
-      const { canAccess, message } = await checkUserAccess(email, currentIp);
-      
-      if (!canAccess) {
-        return { error: { message } };
-      }
-
-      // Verificar se o usuário já está logado em outro dispositivo
-      const { data: statusAtual } = await supabase
-        .from('usuarios_gratis')
-        .select('status, ultimo_ip, ultimo_acesso')
-        .eq('email', email)
-        .single();
-
-      if (statusAtual?.status === 'online' && statusAtual.ultimo_ip !== currentIp) {
-        const ultimoAcesso = new Date(statusAtual.ultimo_acesso);
-        const trintaMinutosAtras = new Date(Date.now() - 30 * 60 * 1000);
-
-        if (ultimoAcesso > trintaMinutosAtras) {
-          return { error: { message: `Este usuário já está logado em outro dispositivo (IP: ${statusAtual.ultimo_ip}). Aguarde 30 minutos ou contate o suporte.` } };
-        }
-      }
-
-      // Verificar se o IP já está sendo usado por outro usuário
-      const { data: outroUsuario } = await supabase
-        .from('usuarios_gratis')
-        .select('email')
-        .eq('ultimo_ip', currentIp)
-        .eq('status', 'online')
-        .neq('email', email)
-        .single();
-
-      if (outroUsuario) {
-        return { error: { message: 'Este IP já está sendo usado por outro usuário.' } };
-      }
-
-      // Atualizar último acesso e resetar tentativas
+      // Atualizar tentativas falhas
       const { error: updateError } = await supabase
         .from('usuarios_gratis')
         .update({
-          tentativas_falhas: 0,
-          ultimo_acesso: new Date().toISOString(),
-          ultimo_ip: currentIp,
-          status: 'online'
+          tentativas_falhas: 0
         })
         .eq('id', usuario.id);
 
